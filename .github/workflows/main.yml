@@ -34,14 +34,7 @@ jobs:
           if [ -f requirements.txt ]; then
             python -m pip install -r requirements.txt
           fi
-
-      - name: Verify Installation
-        run: |
-          python --version
-          google-chrome --version
-          python -m pip show robotframework
-          python -m robot --version
-
+     
       - name: Check project files
         run: |
             pwd
