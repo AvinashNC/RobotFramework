@@ -42,6 +42,12 @@ jobs:
           python -m pip show robotframework
           python -m robot --version
 
+      - name: Check project files
+        run: |
+            pwd
+            ls -la
+             find . -name "*.robot"
+
       - name: Run Robot Tests
         run: |
           python -m robot -d results tests/google.robot
