@@ -1,4 +1,4 @@
-name: Robot Framework Selenium Tests
+name: Robot Framework Tests
 
 on:
   push:
@@ -7,7 +7,9 @@ on:
   pull_request:
 
 jobs:
-  robot-test:
+
+  robot-web-test:
+    name: Google Selenium Tests
     runs-on: ubuntu-latest
 
     steps:
@@ -19,35 +21,60 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install Chrome
-        uses: browser-actions/setup-chrome@v1
-
-      - name: Install Robot Framework Dependencies
+      - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install robotframework
-          python -m pip install robotframework-seleniumlibrary
-          python -m pip install selenium
+          pip install robotframework
+          pip install robotframework-seleniumlibrary
+          pip install selenium
 
-      - name: Install Project Dependencies
+      - name: Verify Robot
         run: |
-          if [ -f requirements.txt ]; then
-            python -m pip install -r requirements.txt
-          fi
-     
-      - name: Check project files
-        run: |
-            pwd
-            ls -la
-             find . -name "*.robot"
+          python -m robot --version
 
-      - name: Run Robot Tests
+      - name: Run Google Tests
         run: |
-          python -m robot -d results tests/google.robot
+          python -m robot -d results/google tests/google.robot
 
-      - name: Upload Robot Reports
+      - name: Upload Google Results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: robot-results
-          path: results
+          name: google-robot-results
+          path: results/google
+
+
+  robot-vehicle-test:
+    name: Automobile Vehicle Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install robotframework
+          pip install robotframework-seleniumlibrary
+          pip install selenium
+
+      - name: Verify Robot
+        run: |
+          python -m robot --version
+
+      - name: Run Vehicle Tests
+        run: |
+          python -m robot -d results/vehicle tests/vehicle.robot
+
+      - name: Upload Vehicle Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vehicle-robot-results
+          path: results/vehicle
