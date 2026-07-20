@@ -4,53 +4,51 @@ on:
   push:
     branches:
       - main
-
   pull_request:
 
-
 jobs:
-
   robot-test:
-
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    - name: Checkout Code
-      uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
+      - name: Install Chrome
+        uses: browser-actions/setup-chrome@v1
 
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.12"
+      - name: Install Robot Framework Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install robotframework
+          python -m pip install robotframework-seleniumlibrary
+          python -m pip install selenium
 
+      - name: Install Project Dependencies
+        run: |
+          if [ -f requirements.txt ]; then
+            python -m pip install -r requirements.txt
+          fi
 
-    - name: Install Chrome
-      uses: browser-actions/setup-chrome@v1
+      - name: Verify Installation
+        run: |
+          python --version
+          google-chrome --version
+          python -m pip show robotframework
+          python -m robot --version
 
+      - name: Run Robot Tests
+        run: |
+          python -m robot -d results tests/google.robot
 
-    - name: Install Robot Dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-
-
-    - name: Verify Installation
-      run: |
-        python --version
-        google-chrome --version
-        python -m robot --version
-
-
-    - name: Execute Robot Test
-      run: |
-        python -m robot -d results google.robot
-
-
-    - name: Upload Robot Reports
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: robot-results
-        path: results
+      - name: Upload Robot Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: robot-results
+          path: results
