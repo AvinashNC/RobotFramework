@@ -23,7 +23,7 @@ jobs:
       - name: Install Chrome
         uses: browser-actions/setup-chrome@v1
         with:
-        chrome-version: stable
+          chrome-version: stable
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
@@ -65,7 +65,7 @@ jobs:
       - name: Install Chrome
         uses: browser-actions/setup-chrome@v1
         with:
-       chrome-version: stable
+          chrome-version: stable
 
       - name: Verify Chrome
         run: |
