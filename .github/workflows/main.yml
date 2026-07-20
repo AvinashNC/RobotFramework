@@ -34,7 +34,7 @@ jobs:
 
       - name: Run Google Tests
         run: |
-          python -m robot -d results/google tests/google.robot
+          python -m robot -d tests/google tests/google.robot
 
       - name: Upload Google Results
         if: always()
@@ -70,7 +70,7 @@ jobs:
 
       - name: Run Vehicle Tests
         run: |
-          python -m robot -d results/vehicle tests/vehicle.robot
+          python -m robot -d tests/vehicle tests/vehicle.robot
 
       - name: Upload Vehicle Results
         if: always()
