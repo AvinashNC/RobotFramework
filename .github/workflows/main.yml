@@ -1,38 +1,53 @@
-name: Robot Framework Tests
+name: Robot Framework Selenium Tests
 
 on:
   push:
     branches:
       - main
-
   pull_request:
 
 jobs:
-  robot-tests:
-
+  robot-test:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    - name: Checkout Source
-      uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
-    - name: Install Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.12'
+      - name: Install Chrome
+        uses: browser-actions/setup-chrome@v1
 
-    - name: Install Dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
+      - name: Install Robot Framework Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install robotframework
+          python -m pip install robotframework-seleniumlibrary
+          python -m pip install selenium
 
-    - name: Run Robot Tests
-      run: |
-        robot -d results tests
+      - name: Install Project Dependencies
+        run: |
+          if [ -f requirements.txt ]; then
+            python -m pip install -r requirements.txt
+          fi
+     
+      - name: Check project files
+        run: |
+            pwd
+            ls -la
+             find . -name "*.robot"
 
-    - name: Upload Reports
-      uses: actions/upload-artifact@v4
-      with:
-        name: RobotReports
-        path: results
+      - name: Run Robot Tests
+        run: |
+          python -m robot -d results tests/google.robot
+
+      - name: Upload Robot Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: robot-results
+          path: results
