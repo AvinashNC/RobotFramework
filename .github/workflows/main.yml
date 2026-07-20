@@ -28,10 +28,7 @@ jobs:
           pip install robotframework-seleniumlibrary
           pip install selenium
 
-      - name: Verify Robot
-        run: |
-          python -m robot --version
-
+   
       - name: Run Google Tests
         run: |
           python -m robot -d tests/google tests/google.robot
@@ -64,10 +61,7 @@ jobs:
           pip install robotframework-seleniumlibrary
           pip install selenium
 
-      - name: Verify Robot
-        run: |
-          python -m robot --version
-
+     
       - name: Run Vehicle Tests
         run: |
           python -m robot -d tests/vehicle tests/vehicle.robot
