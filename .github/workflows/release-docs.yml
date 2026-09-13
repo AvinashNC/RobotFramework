@@ -40,38 +40,43 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: pip install requests
+        run: pip install requests python-docx
 
-      - name: Resolve output path
+      - name: Resolve output paths
         id: vars
         run: |
           if [ -n "${{ inputs.output_path }}" ]; then
-            echo "output_path=${{ inputs.output_path }}" >> "$GITHUB_OUTPUT"
+            MD_PATH="${{ inputs.output_path }}"
           else
-            echo "output_path=docs/releases/${{ inputs.tag2 }}.md" >> "$GITHUB_OUTPUT"
+            MD_PATH="docs/releases/${{ inputs.tag2 }}.md"
           fi
+          DOCX_PATH="${MD_PATH%.md}.docx"
+          echo "md_path=$MD_PATH" >> "$GITHUB_OUTPUT"
+          echo "docx_path=$DOCX_PATH" >> "$GITHUB_OUTPUT"
 
-      - name: Generate release doc
+      - name: Generate release docs (.md + .docx)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          mkdir -p "$(dirname '${{ steps.vars.outputs.output_path }}')"
+          mkdir -p "$(dirname '${{ steps.vars.outputs.md_path }}')"
           python scripts/generate_release_docs.py \
             --owner "${{ github.repository_owner }}" \
             --repo "${{ github.event.repository.name }}" \
             --tag1 "${{ inputs.tag1 }}" \
             --tag2 "${{ inputs.tag2 }}" \
             --prev-doc "${{ inputs.prev_doc_path }}" \
-            --output "${{ steps.vars.outputs.output_path }}"
+            --output "${{ steps.vars.outputs.md_path }}"
 
-      - name: Upload as workflow artifact
+      - name: Upload as workflow artifacts
         uses: actions/upload-artifact@v4
         with:
           name: release-doc-${{ inputs.tag2 }}
-          path: ${{ steps.vars.outputs.output_path }}
+          path: |
+            ${{ steps.vars.outputs.md_path }}
+            ${{ steps.vars.outputs.docx_path }}
 
-      - name: Open PR with generated doc
+      - name: Open PR with generated docs
         uses: peter-evans/create-pull-request@v6
         with:
           commit-message: "docs: add release notes for ${{ inputs.tag2 }}"
@@ -81,4 +86,6 @@ jobs:
             Auto-generated release notes comparing `${{ inputs.tag1 }}` to `${{ inputs.tag2 }}`.
             Please review before merging — the AI drafts based on commit messages and diffs,
             but details should be double-checked.
-          add-paths: ${{ steps.vars.outputs.output_path }}
+          add-paths: |
+            ${{ steps.vars.outputs.md_path }}
+            ${{ steps.vars.outputs.docx_path }}
