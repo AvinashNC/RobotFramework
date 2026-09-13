@@ -1,0 +1,84 @@
+name: Generate Release Docs
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag1:
+        description: "Previous tag (e.g. v1.2.0)"
+        required: true
+        type: string
+      tag2:
+        description: "New tag (e.g. v1.3.0)"
+        required: true
+        type: string
+      prev_doc_path:
+        description: "Path to previous release doc used as style reference"
+        required: false
+        type: string
+        default: "docs/releases/latest.md"
+      output_path:
+        description: "Where to write the generated release doc"
+        required: false
+        type: string
+        default: ""  # defaults to docs/releases/<tag2>.md if left blank
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout repo (full history + tags)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Resolve output path
+        id: vars
+        run: |
+          if [ -n "${{ inputs.output_path }}" ]; then
+            echo "output_path=${{ inputs.output_path }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "output_path=docs/releases/${{ inputs.tag2 }}.md" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate release doc
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          mkdir -p "$(dirname '${{ steps.vars.outputs.output_path }}')"
+          python scripts/generate_release_docs.py \
+            --owner "${{ github.repository_owner }}" \
+            --repo "${{ github.event.repository.name }}" \
+            --tag1 "${{ inputs.tag1 }}" \
+            --tag2 "${{ inputs.tag2 }}" \
+            --prev-doc "${{ inputs.prev_doc_path }}" \
+            --output "${{ steps.vars.outputs.output_path }}"
+
+      - name: Upload as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-doc-${{ inputs.tag2 }}
+          path: ${{ steps.vars.outputs.output_path }}
+
+      - name: Open PR with generated doc
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "docs: add release notes for ${{ inputs.tag2 }}"
+          branch: release-docs/${{ inputs.tag2 }}
+          title: "Release docs: ${{ inputs.tag1 }} -> ${{ inputs.tag2 }}"
+          body: |
+            Auto-generated release notes comparing `${{ inputs.tag1 }}` to `${{ inputs.tag2 }}`.
+            Please review before merging — the AI drafts based on commit messages and diffs,
+            but details should be double-checked.
+          add-paths: ${{ steps.vars.outputs.output_path }}
