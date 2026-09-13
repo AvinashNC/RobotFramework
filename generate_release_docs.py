@@ -5,10 +5,10 @@ generate_release_docs.py
 Automates release note generation:
 1. Fetches the diff (commits + file changes) between two git tags from GitHub.
 2. Feeds that diff + a previous release doc (as a style reference) to Google Gemini.
-3. Writes the generated release doc to a markdown file.
+3. Writes the generated release doc to a markdown file AND a matching .docx file.
 
 Setup:
-    pip install requests
+    pip install requests python-docx
 
     Environment variables (or pass via CLI flags):
         GITHUB_TOKEN   - GitHub personal access token (needed for private repos / higher rate limits)
@@ -22,19 +22,112 @@ Usage:
         --tag2 v1.3.0 \
         --prev-doc ./previous_release_notes.md \
         --output ./release_notes_v1.3.0.md
+
+    This writes both release_notes_v1.3.0.md and release_notes_v1.3.0.docx.
 """
 
 import argparse
 import os
+import re
 import sys
 import textwrap
 import requests
+from docx import Document
+from docx.shared import Pt
 
 GITHUB_API = "https://api.github.com"
 GEMINI_API = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
 MAX_PATCH_CHARS_PER_FILE = 4000   # truncate huge file diffs
 MAX_TOTAL_DIFF_CHARS = 120_000    # keep total prompt reasonable
+
+BOLD_PATTERN = re.compile(r"\*\*(.+?)\*\*")
+
+
+def _add_runs_with_bold(paragraph, text):
+    """Split on **bold** markers and add runs preserving bold formatting."""
+    pos = 0
+    for m in BOLD_PATTERN.finditer(text):
+        if m.start() > pos:
+            paragraph.add_run(text[pos:m.start()])
+        run = paragraph.add_run(m.group(1))
+        run.bold = True
+        pos = m.end()
+    if pos < len(text):
+        paragraph.add_run(text[pos:])
+
+
+def markdown_to_docx(markdown_text, output_path, title=None):
+    """
+    Minimal markdown -> docx converter covering what release notes typically use:
+    headings (#, ##, ###), bullet lists (-, *), bold (**text**), and plain paragraphs.
+    Good enough for AI-generated release notes; not a full CommonMark implementation.
+    """
+    doc = Document()
+
+    style = doc.styles["Normal"]
+    style.font.name = "Calibri"
+    style.font.size = Pt(11)
+
+    # Group source lines into blocks: blank lines separate blocks; soft-wrapped
+    # lines within a plain paragraph get joined with a space.
+    raw_lines = markdown_text.splitlines()
+    blocks = []
+    current = []
+    for raw_line in raw_lines:
+        line = raw_line.rstrip()
+        if not line.strip():
+            if current:
+                blocks.append(current)
+                current = []
+            continue
+        is_special = (
+            line.strip() in ("---", "***", "___")
+            or re.match(r"^(#{1,4})\s+", line)
+            or re.match(r"^\s*[-*]\s+", line)
+            or re.match(r"^\s*\d+\.\s+", line)
+        )
+        if is_special:
+            if current:
+                blocks.append(current)
+                current = []
+            blocks.append([line])
+        else:
+            current.append(line)
+    if current:
+        blocks.append(current)
+
+    for block in blocks:
+        line = block[0] if len(block) == 1 else " ".join(l.strip() for l in block)
+
+        if line.strip() in ("---", "***", "___"):
+            doc.add_paragraph("―" * 20)
+            continue
+
+        heading_match = re.match(r"^(#{1,4})\s+(.*)", line)
+        if heading_match:
+            level = len(heading_match.group(1))
+            text = heading_match.group(2).strip()
+            doc.add_heading(text, level=level)
+            continue
+
+        bullet_match = re.match(r"^\s*[-*]\s+(.*)", line)
+        if bullet_match:
+            p = doc.add_paragraph(style="List Bullet")
+            _add_runs_with_bold(p, bullet_match.group(1).strip())
+            continue
+
+        numbered_match = re.match(r"^\s*\d+\.\s+(.*)", line)
+        if numbered_match:
+            p = doc.add_paragraph(style="List Number")
+            _add_runs_with_bold(p, numbered_match.group(1).strip())
+            continue
+
+        # plain paragraph (possibly joined from soft-wrapped lines)
+        p = doc.add_paragraph()
+        _add_runs_with_bold(p, line.strip())
+
+    doc.save(output_path)
 
 
 def fetch_compare(owner, repo, tag1, tag2, token=None):
@@ -152,7 +245,10 @@ def main():
     with open(args.output, "w", encoding="utf-8") as f:
         f.write(output_text)
 
-    print(f"Done. Release doc written to {args.output}")
+    docx_path = os.path.splitext(args.output)[0] + ".docx"
+    markdown_to_docx(output_text, docx_path)
+
+    print(f"Done. Release docs written to:\n  {args.output}\n  {docx_path}")
 
 
 if __name__ == "__main__":
