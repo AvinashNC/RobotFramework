@@ -96,7 +96,7 @@ def _extract_json(text):
     return json.loads(text)
 
 
-def generate_structured_release_data(diff_summary, tag1, tag2, api_key, model="gemini-2.0-flash"):
+def generate_structured_release_data(diff_summary, tag1, tag2, api_key, model="gemini3.6-flash"):
     prompt = textwrap.dedent(f"""
         You are a release notes writer. Based on the commit messages and file diffs below
         (comparing git tag {tag1} to {tag2}), produce a JSON object with EXACTLY this shape
@@ -187,7 +187,7 @@ def main():
     parser.add_argument("--output", default="release_notes", help="Output file path WITHOUT extension")
     parser.add_argument("--github-token", default=os.environ.get("GITHUB_TOKEN"))
     parser.add_argument("--gemini-key", default=os.environ.get("GEMINI_API_KEY"))
-    parser.add_argument("--model", default="gemini-2.0-flash")
+    parser.add_argument("--model", default="gemini-3.6-flash")
     args = parser.parse_args()
 
     if not args.gemini_key:
