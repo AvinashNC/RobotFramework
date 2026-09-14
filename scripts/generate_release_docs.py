@@ -96,7 +96,11 @@ def _extract_json(text):
     return json.loads(text)
 
 
+<<<<<<< HEAD
 def generate_structured_release_data(diff_summary, tag1, tag2, api_key, model="gemini3.6-flash"):
+=======
+def generate_structured_release_data(diff_summary, tag1, tag2, api_key, model="gemini-3.6-flash"):
+>>>>>>> caf6022653806671e986520f6b0d08b2446e0389
     prompt = textwrap.dedent(f"""
         You are a release notes writer. Based on the commit messages and file diffs below
         (comparing git tag {tag1} to {tag2}), produce a JSON object with EXACTLY this shape
