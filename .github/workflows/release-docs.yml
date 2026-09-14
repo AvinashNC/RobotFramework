@@ -4,23 +4,23 @@ on:
   workflow_dispatch:
     inputs:
       tag1:
-        description: "Previous tag (e.g. v1.2.0)"
+        description: "Previous tag (e.g. v2.0.0)"
         required: true
         type: string
       tag2:
-        description: "New tag (e.g. v1.3.0)"
+        description: "New tag (e.g. v2.0.1)"
         required: true
         type: string
-      prev_doc_path:
-        description: "Path to previous release doc used as style reference"
+      template_path:
+        description: "Path to the .docx release template"
         required: false
         type: string
-        default: "docs/releases/latest.md"
-      output_path:
-        description: "Where to write the generated release doc"
+        default: "docs/releases/release_template.docx"
+      output_basename:
+        description: "Output filename without extension"
         required: false
         type: string
-        default: ""  # defaults to docs/releases/<tag2>.md if left blank
+        default: ""  # defaults to docs/releases/release_<tag2> if left blank
 
 jobs:
   generate:
@@ -42,39 +42,37 @@ jobs:
       - name: Install dependencies
         run: pip install requests python-docx
 
-      - name: Resolve output paths
+      - name: Resolve output path
         id: vars
         run: |
-          if [ -n "${{ inputs.output_path }}" ]; then
-            MD_PATH="${{ inputs.output_path }}"
+          if [ -n "${{ inputs.output_basename }}" ]; then
+            BASE="${{ inputs.output_basename }}"
           else
-            MD_PATH="docs/releases/${{ inputs.tag2 }}.md"
+            BASE="docs/releases/release_${{ inputs.tag2 }}"
           fi
-          DOCX_PATH="${MD_PATH%.md}.docx"
-          echo "md_path=$MD_PATH" >> "$GITHUB_OUTPUT"
-          echo "docx_path=$DOCX_PATH" >> "$GITHUB_OUTPUT"
+          echo "base=$BASE" >> "$GITHUB_OUTPUT"
 
-      - name: Generate release docs (.md + .docx)
+      - name: Generate release docs (.docx from template + .md)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          mkdir -p "$(dirname '${{ steps.vars.outputs.md_path }}')"
+          mkdir -p "$(dirname '${{ steps.vars.outputs.base }}')"
           python scripts/generate_release_docs.py \
             --owner "${{ github.repository_owner }}" \
             --repo "${{ github.event.repository.name }}" \
             --tag1 "${{ inputs.tag1 }}" \
             --tag2 "${{ inputs.tag2 }}" \
-            --prev-doc "${{ inputs.prev_doc_path }}" \
-            --output "${{ steps.vars.outputs.md_path }}"
+            --template "${{ inputs.template_path }}" \
+            --output "${{ steps.vars.outputs.base }}"
 
       - name: Upload as workflow artifacts
         uses: actions/upload-artifact@v4
         with:
           name: release-doc-${{ inputs.tag2 }}
           path: |
-            ${{ steps.vars.outputs.md_path }}
-            ${{ steps.vars.outputs.docx_path }}
+            ${{ steps.vars.outputs.base }}.docx
+            ${{ steps.vars.outputs.base }}.md
 
       - name: Open PR with generated docs
         uses: peter-evans/create-pull-request@v6
@@ -83,9 +81,10 @@ jobs:
           branch: release-docs/${{ inputs.tag2 }}
           title: "Release docs: ${{ inputs.tag1 }} -> ${{ inputs.tag2 }}"
           body: |
-            Auto-generated release notes comparing `${{ inputs.tag1 }}` to `${{ inputs.tag2 }}`.
+            Auto-generated release notes comparing `${{ inputs.tag1 }}` to `${{ inputs.tag2 }}`,
+            filled into the standard release template.
             Please review before merging — the AI drafts based on commit messages and diffs,
             but details should be double-checked.
           add-paths: |
-            ${{ steps.vars.outputs.md_path }}
-            ${{ steps.vars.outputs.docx_path }}
+            ${{ steps.vars.outputs.base }}.docx
+            ${{ steps.vars.outputs.base }}.md
